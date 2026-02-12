@@ -7,7 +7,7 @@ SELECT
     'old' AS concept_type,
     c.concept_id
 INTO @scratchSchema.concepts_in_cohorts
-FROM @scratchSchema.old_vc ci
+FROM #old_vc ci
 JOIN @oldVocabSchema.concept_relationship r
     ON r.concept_id_1 = ci.descendant_concept_id
    AND r.relationship_id = 'Mapped from'
@@ -21,7 +21,7 @@ SELECT
     cohortid AS cohort_definition_id,
     'new' AS concept_type,
     c.concept_id
-FROM @scratchSchema.new_vc ci
+FROM #new_vc ci
 JOIN @newVocabSchema.concept_relationship r
     ON r.concept_id_1 = ci.descendant_concept_id
    AND r.relationship_id = 'Mapped from'
