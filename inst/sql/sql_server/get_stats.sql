@@ -190,7 +190,7 @@ SELECT
 INTO @scratchSchema.stats
 FROM @scratchSchema.cohort_vocab_change_summary AS s
 LEFT JOIN (select distinct cohort_definition_id, cohortname from @scratchSchema.concepts_in_cohorts) AS n
-    ON n.cohortid = s.cohort_definition_id
+    ON n.cohort_definition_id = s.cohort_definition_id
 INNER JOIN @scratchSchema.concept_count_change AS cc
     ON cc.cohort_definition_id = s.cohort_definition_id
 ORDER BY s.same_persons_no_change * 1.0 / s.total_persons;
