@@ -4,6 +4,7 @@ DROP TABLE IF EXISTS @scratchSchema.concepts_in_cohorts;
 
 SELECT
     cohortid AS cohort_definition_id,
+    cohortname,
     'old' AS concept_type,
     c.concept_id
 INTO @scratchSchema.concepts_in_cohorts
@@ -19,6 +20,7 @@ UNION ALL
 
 SELECT
     cohortid AS cohort_definition_id,
+    cohortname,
     'new' AS concept_type,
     c.concept_id
 FROM #new_vc ci
@@ -187,7 +189,7 @@ SELECT
     cc.added_concepts_count
 INTO @scratchSchema.stats
 FROM @scratchSchema.cohort_vocab_change_summary AS s
-LEFT JOIN @scratchSchema.cohort_id_names AS n
+LEFT JOIN (select distinct cohort_definition_id, cohortname from @scratchSchema.concepts_in_cohorts) AS n
     ON n.cohortid = s.cohort_definition_id
 INNER JOIN @scratchSchema.concept_count_change AS cc
     ON cc.cohort_definition_id = s.cohort_definition_id
