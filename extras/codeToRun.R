@@ -1,22 +1,20 @@
 ######################################
-## PhenotypeChangesInVocabUpdate code to run ##
+## Alathea code to run ##
 ######################################
 
 # install libraries, if not installed
-#remotes::install_github("OHDSI/PhenotypeChangesInVocabUpdate")
+#remotes::install_github("OHDSI/Alathea")
 #remotes::install_github("OHDSI/DatabaseConnector")
-
-remotes::install_github("OHDSI/PhenotypeChangesInVocabUpdate")
 
 library (dplyr)
 library (openxlsx)
 library (readr)
 library (tibble)
 library (DatabaseConnector)
-library (PhenotypeChangesInVocabUpdate)
+library (Alathea)
 
 #set the BaseUrl of your Atlas instance
-#baseUrl <- "https://yourSecureAtlas.ohdsi.org/"
+baseUrl <- "https://epi.jnj.com:8443/WebAPI/"
 
 # if security is enabled authorize use of the webapi
 ROhdsiWebApi::authorizeWebApi(
@@ -25,8 +23,13 @@ ROhdsiWebApi::authorizeWebApi(
 
 
 # specify cohorts you want to run the comparison for
-# you can define the cohorts as vector:
-cohorts <-c(1, 2, 3)
+Cohorts <- read_delim("Cohorts2026.csv", delim = ",",
+                      escape_double = FALSE, trim_ws = TRUE)
+cohorts <-c( Cohorts$cohortId)
+
+
+#set name which will be used for the output
+projName='Feb2026test'
 
 #excluded nodes is a text string with nodes you want to exclude from the analysis, it's set to 0 by default
 # for example now some CPT4 and HCPCS are mapped to Visit concepts and we didn't implement this in the ETL,
@@ -35,26 +38,24 @@ cohorts <-c(1, 2, 3)
 excludedVisitNodes <- "9202, 2514435,9203,2514436,2514437,2514434,2514433,9201"
 
 #you can restrict the output by using specific source vocabularies (only those that exist in your data as source concepts)
-includedSourceVocabs <- "'ICD10', 'ICD10CM', 'CPT4', 'HCPCS', 'NDC', 'ICD9CM', 'ICD9Proc', 'ICD10PCS', 'ICDO3', 'JMDC'"
-
-
+includedSourceVocabs <- "'ICD10', 'ICD10CM', 'CPT4', 'HCPCS', 'NDC', 'ICD9CM', 'ICD9Proc', 'ICD10PCS', 'ICDO3', 'JMDC', 'LOINC'"
 
 #set connectionDetails,
 #you can use keyring to store your credentials,
-#see how to configure keyring to use with the example below in ~/PhenotypeChangesInVocabUpdate/extras/KeyringSetup.R
+#see how to configure keyring to use with the example below in ~/Alathea/extras/KeyringSetup.R
 
 # you can also define connectionDetails directly, see the DatabaseConnector documentation https://ohdsi.github.io/DatabaseConnector/
 
- # connectionDetailsVocab = DatabaseConnector::createConnectionDetails(
- #   dbms = keyring::key_get("YourDatabase", "dbms" ),
- #   connectionString = keyring::key_get("YourDatabase", "connectionString"),
- #   user = keyring::key_get("YourDatabase", "username"),
- #   password = keyring::key_get("YourDatabase", "password" )
- # )
+connectionDetails = DatabaseConnector::createConnectionDetails(
+  dbms = "spark",
+  connectionString = keyring::key_get("databricks", "connection_string"),
+  user = "token",
+  password = keyring::key_get("databricks", "token")
+)
 
 #specify schemas with vocabulary versions you want to compare
-newVocabSchema <-'v20240229' #schema containing a new vocabulary version
-oldVocabSchema <-'v20220909' #schema containing an older vocabulary
+ oldVocabSchema<-'vocabulary.v20250827_full_omop'
+ newVocabSchema <-'vocabulary.v20260227'
 
 
 #get the concept count table
@@ -62,22 +63,25 @@ oldVocabSchema <-'v20220909' #schema containing an older vocabulary
 # https://github.com/OHDSI/WebAPI/blob/master/src/main/resources/ddl/achilles/achilles_result_concept_count.sql
 # and store it in the same database as the Vocabulary tables, please specify schema as result schema
 
-resultSchema <-'scratch_ddymshyt' #schema containing Achilles results
-scratcSchema <-'scratch_ddymshyt' #schema for storing temp tables in Azure
+resultSchema <-'vocabulary.jnj_network' #schema containing Achilles results
+scratchSchema <-'scratch.scratch_ddymshyt'
+cdmSchema <-'healthverity_cc.cdm_healthverity_cc_v3616' # to get the stats tab - as it runs on the real data
 
 #create the dataframe with concept set expressions using the getNodeConcepts function
 Concepts_in_cohortSet<-getNodeConcepts(cohorts, baseUrl)
 
 #resolve concept sets, compare the outputs on different vocabulary versions, write results to the Excel file
 #for Redshift ask your administrator for a key for bulk load, since the function uploads the data to the database
-resultToExcel(connectionDetailsVocab = connectionDetailsVocab,
+resultToExcel(connectionDetailsVocab = connectionDetails,
               Concepts_in_cohortSet = Concepts_in_cohortSet,
               newVocabSchema = newVocabSchema,
               oldVocabSchema = oldVocabSchema,
               excludedNodes = excludedVisitNodes,
               resultSchema = resultSchema,
+              scratchSchema= scratchSchema,
               includedSourceVocabs = includedSourceVocabs,
-              projName = projName
+              projName = projName,
+              cdmSchema = cdmSchema
 )
 
 #open the excel file

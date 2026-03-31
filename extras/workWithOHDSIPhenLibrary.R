@@ -1,6 +1,6 @@
 library (jsonlite)
 library (tibble)
-library (PhenotypeChangesInVocabUpdate)
+library (Alathea)
 library (PhenotypeLibrary)
 library(dplyr)
 library (readr)
@@ -43,13 +43,19 @@ Concepts_in_cohortSet_all_dates <- Concepts_in_cohortSet_all_dates %>% rename (c
 
 excludedVisitNodes <- "9202, 2514435,9203,2514436,2514437,2514434,2514433,9201"
 includedSourceVocabs <- "'ICD10', 'ICD10CM', 'CPT4', 'HCPCS', 'NDC', 'ICD9CM', 'ICD9Proc', 'ICD10PCS', 'ICDO3', 'JMDC'"
-newVocabSchema <-'v20240229' #schema containing a new vocabulary version
-oldVocabSchema <-'v20230116' #schema containing an older vocabulary
+
+resultSchema <-'vocabulary.jnj_network' #schema containing Achilles results
+scratchSchema <-'scratch.scratch_ddymshyt'
+cdmSchema <-'healthverity_cc.cdm_healthverity_cc_v3616' # to get the stats tab - as it runs on the real data
+
 #oldVocabSchema <-'v20220909' #schema containing an older vocabulary
 #oldVocabSchema <-'v20220409' #schema containing an older vocabulary
 #oldVocabSchema <-'v20210617' #schema containing an older vocabulary
 
-resultSchema <-'scratch_ddymshyt' #schema containing Achilles results
+#specify schemas with vocabulary versions you want to compare
+ oldVocabSchema<-'vocabulary.v20250827_full_omop'
+ newVocabSchema <-'vocabulary.v20260227'
+
 
 #filter cohorts being analysed by date of creation
 #Concepts_in_cohortSet<-Concepts_in_cohortSet_all_dates  %>% dplyr::filter(createdDate>'2023-02-01')
@@ -63,13 +69,16 @@ resultSchema <-'scratch_ddymshyt' #schema containing Achilles results
 #by default we don't need to stratify by dates, we assume that we have the latest version of cohorts working on the previous version of the vocabylary
 Concepts_in_cohortSet<-Concepts_in_cohortSet_all_dates
 
-PhenotypeChangesInVocabUpdate::resultToExcel(connectionDetailsVocab = connectionDetailsVocab,
+resultToExcel(connectionDetailsVocab = connectionDetails,
               Concepts_in_cohortSet = Concepts_in_cohortSet,
               newVocabSchema = newVocabSchema,
               oldVocabSchema = oldVocabSchema,
               excludedNodes = excludedVisitNodes,
               resultSchema = resultSchema,
-			  includedSourceVocabs = includedSourceVocabs
+              scratchSchema= scratchSchema,
+              includedSourceVocabs = includedSourceVocabs,
+              projName = projName,
+              cdmSchema = cdmSchema
 )
 
 #open the excel file

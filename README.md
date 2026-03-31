@@ -17,13 +17,13 @@ https://github.com/OHDSI/WebAPI/blob/master/src/main/resources/ddl/achilles/achi
 
 ```r
 #install package
-remotes::install_github("OHDSI/PhenotypeChangesInVocabUpdate")
+remotes::install_github("OHDSI/Alathea")
 
 library (dplyr)
 library (openxlsx)
 library (readr)
 library (tibble)
-library (PhenotypeChangesInVocabUpdate)
+library (Alathea)
 
 #set the BaseUrl of your Atlas instance
 #baseUrl <- "https://yourSecureAtlas.ohdsi.org/"
@@ -50,7 +50,7 @@ includedSourceVocabs <- "'ICD10', 'ICD10CM', 'CPT4', 'HCPCS', 'NDC', 'ICD9CM', '
 
 #set connectionDetails,
 #you can use keyring to store your credentials,
-#see how to configure keyring: https://github.com/OHDSI/PhenotypeChangesInVocabUpdate/blob/modify_output/extras/KeyringSetup.R
+#see how to configure keyring: https://github.com/OHDSI/Alathea/blob/modify_output/extras/KeyringSetup.R
 
 # you can also define connectionDetails directly, see the DatabaseConnector documentation: https://ohdsi.github.io/DatabaseConnector/
 

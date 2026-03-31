@@ -89,7 +89,7 @@ CompareCohorts <-function( connectionDetailsVocab,
 
 
   # read SQL from file
- pathToSql <- system.file("sql/sql_server", "AllFromNodes_updated_cohorts.sql", package = "PhenotypeChangesInVocabUpdate")
+ pathToSql <- system.file("sql/sql_server", "AllFromNodes_updated_cohorts.sql", package = "Alathea")
 
 
   InitSql <- read_file(pathToSql)

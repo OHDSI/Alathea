@@ -1,17 +1,17 @@
 ######################################
-## PhenotypeChangesInVocabUpdate code to run ##
+## Alathea code to run ##
 ######################################
 
 # install libraries, if not installed
 #remotes::install_github("OHDSI/DatabaseConnector")
-#remotes::install_github("OHDSI/PhenotypeChangesInVocabUpdate")
+#remotes::install_github("OHDSI/Alathea")
 
 library (dplyr)
 library (openxlsx)
 library (readr)
 library (tibble)
 library (DatabaseConnector)
-library (PhenotypeChangesInVocabUpdate)
+library (Alathea)
 
 #set the BaseUrl of your Atlas instance
 #baseUrl <- "https://yourSecureAtlas.ohdsi.org/"
@@ -38,7 +38,7 @@ includedSourceVocabs <- "'ICD10', 'ICD10CM', 'CPT4', 'HCPCS', 'NDC', 'ICD9CM', '
 
 #set connectionDetails,
 #you can use keyring to store your credentials,
-#see how to configure keyring to use with the example below in ~/PhenotypeChangesInVocabUpdate/extras/KeyringSetup.R
+#see how to configure keyring to use with the example below in ~/Alathea/extras/KeyringSetup.R
 
 # you can also define connectionDetails directly, see the DatabaseConnector documentation https://ohdsi.github.io/DatabaseConnector/
 
@@ -69,7 +69,7 @@ Concepts_in_cohortSetNewCht<-getNodeConcepts(cohorts$new_cohort_id, baseUrl)
 
 #resolve concept sets, compare the outputs on different vocabulary versions, write results to the Excel file
 #for Redshift ask your administrator for a key for bulk load, since the function uploads the data to the database
-PhenotypeChangesInVocabUpdate::CompareCohorts(connectionDetailsVocab = connectionDetailsVocab,
+Alathea::CompareCohorts(connectionDetailsVocab = connectionDetailsVocab,
                                               cohorts = cohorts,
               Concepts_in_cohortSetOldCht = Concepts_in_cohortSetOldCht,
                Concepts_in_cohortSetNewCht = Concepts_in_cohortSetNewCht,

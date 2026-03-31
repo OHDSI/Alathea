@@ -67,7 +67,7 @@ resultToExcel <-function( connectionDetailsVocab,
 
 
   # read SQL from file
-  pathToSql <- system.file("sql/sql_server", "AllFromNodes.sql", package = "PhenotypeChangesInVocabUpdate")
+  pathToSql <- system.file("sql/sql_server", "AllFromNodes.sql", package = "Alathea")
   InitSql <- read_file(pathToSql)
 
 
@@ -171,7 +171,7 @@ order by drc desc", snakeCaseToCamelCase = T) # to evaluate the best way of nami
   )
 
 
-  pathToSqlStats <- system.file("sql/sql_server", "get_stats.sql", package = "PhenotypeChangesInVocabUpdate")
+  pathToSqlStats <- system.file("sql/sql_server", "get_stats.sql", package = "Alathea")
   StatsSql <- read_file(pathToSqlStats)
 
 
