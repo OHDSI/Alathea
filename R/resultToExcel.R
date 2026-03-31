@@ -26,7 +26,7 @@
 #' @param scratchSchema         used to store temp tables in Databricks
 #' @param cdmSchema             (optional) CDM schema used for the stats tab; requires patient-level data access.
 #'                              Set to \code{NULL} to skip the stats tab (default: \code{NULL})
-#' @examples
+#' @param outputFolder          path to the folder where the Excel file will be saved; created if it does not exist (default: \code{"results"})
 #' \dontrun{
 #'  resultToExcel(connectionDetails = YourconnectionDetails,
 #'  Concepts_in_cohortSet = Concepts_in_cohortSet, # is returned by getNodeConcepts function
@@ -47,7 +47,8 @@ resultToExcel <-function( connectionDetailsVocab,
                           includedSourceVocabs =0,
                           projName  = '',
                           scratchSchema,
-                          cdmSchema = NULL
+                          cdmSchema = NULL,
+                          outputFolder = "results"
                           )
 {
   #use databaseConnector to run SQL and extract tables into data frames
@@ -66,6 +67,17 @@ resultToExcel <-function( connectionDetailsVocab,
                                  createTable = TRUE,
                                  tempTable = T,
                                  bulkLoad = F)
+
+  #get vocabulary versions from both schemas
+  vocabVersions <- DatabaseConnector::renderTranslateQuerySql(
+    connection = conn,
+    "select 'old' as vocabulary_type, vocabulary_version from @oldVocabSchema.vocabulary where vocabulary_id = 'None'
+     union all
+     select 'new' as vocabulary_type, vocabulary_version from @newVocabSchema.vocabulary where vocabulary_id = 'None'",
+    oldVocabSchema = oldVocabSchema,
+    newVocabSchema = newVocabSchema,
+    snakeCaseToCamelCase = FALSE
+  )
 
 
   # read SQL from file
@@ -207,6 +219,9 @@ DROP TABLE IF EXISTS @scratchSchema.stats;",
   # put the results in excel, each dataframe goes to a separate tab
   wb <- createWorkbook()
 
+  addWorksheet(wb, "vocabularyVersions")
+  writeData(wb, "vocabularyVersions", vocabVersions)
+
   addWorksheet(wb, "nonStNodes")
   writeData(wb, "nonStNodes", nonStNodes)
 
@@ -221,5 +236,7 @@ DROP TABLE IF EXISTS @scratchSchema.stats;",
     writeData(wb, "stats", stats)
   }
 
-  saveWorkbook(wb, paste0(projName, "PhenChange.xlsx"), overwrite = TRUE)
+  if (!dir.exists(outputFolder)) dir.create(outputFolder, recursive = TRUE)
+  outputPath <- file.path(outputFolder, paste0(projName, "PhenChange.xlsx"))
+  saveWorkbook(wb, outputPath, overwrite = TRUE)
 }

@@ -89,9 +89,10 @@ resultToExcel(connectionDetailsVocab = connectionDetails,
               scratchSchema= scratchSchema,
               includedSourceVocabs = includedSourceVocabs,
               projName = projName,
-              cdmSchema = cdmSchema
+              cdmSchema = cdmSchema,
+              outputFolder = "results"
 )
 
 #open the excel file
 #Windows
-shell.exec(paste0(projName, "PhenChange.xlsx"))
+shell.exec(file.path("results", paste0(projName, "PhenChange.xlsx")))
