@@ -61,9 +61,12 @@ connectionDetails = DatabaseConnector::createConnectionDetails(
 # (optional) schema containing Achilles achilles_result_concept_count table - adds concept usage counts to output
 # to generate the table, see:
 # https://github.com/OHDSI/WebAPI/blob/master/src/main/resources/ddl/achilles/achilles_result_concept_count.sql
+
 # set to NULL to run without usage counts
 resultSchema <-'vocabulary.jnj_network'
 scratchSchema <-'scratch.scratch_ddymshyt'
+
+
 # (optional) CDM schema for the stats tab - requires access to patient-level data
 # set to NULL to skip the stats tab
 cdmSchema <-'healthverity_cc.cdm_healthverity_cc_v3616'

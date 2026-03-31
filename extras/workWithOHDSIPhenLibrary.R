@@ -3,11 +3,11 @@ library (tibble)
 library (Alathea)
 library (PhenotypeLibrary)
 library(dplyr)
-library (readr)
 library (openxlsx)
 
 #get all concept sets
-allConceptSets<-getPlConceptDefinitionSet(cohortIds = getPhenotypeLog()$cohortId)
+phenotypeLog <- getPhenotypeLog()
+allConceptSets <- getPlConceptDefinitionSet(cohortIds = phenotypeLog$cohortId)
 
 #initial table
 Concepts_in_cohort <- tibble(
@@ -22,7 +22,10 @@ Concepts_in_cohort <- tibble(
 #loop through all the concept sets
 for (i in 1:nrow(allConceptSets)) {
   # Apply the function to each row of the data frame
-  result_df <- fromJSON(allConceptSets[i, ]$conceptSetExpression, flatten = TRUE) %>% select (concept.CONCEPT_ID, isExcluded , includeDescendants)
+  parsed <- fromJSON(allConceptSets[i, ]$conceptSetExpression, flatten = TRUE)
+  # skip empty concept sets
+  if (is.null(parsed) || nrow(parsed) == 0) next
+  result_df <- parsed %>% select(concept.CONCEPT_ID, isExcluded, includeDescendants)
   result_df$conceptsetId <- allConceptSets[i, ]$conceptSetId
   result_df$conceptsetName <- allConceptSets[i, ]$conceptSetName
   result_df$cohortId <- allConceptSets[i, ]$cohortId
@@ -31,15 +34,23 @@ for (i in 1:nrow(allConceptSets)) {
 }
 
 #append cohort names
-cohIdInfo <-getPhenotypeLog() %>% select (cohortId, cohortName, createdDate)
+cohIdInfo <- phenotypeLog %>% select(cohortId, cohortName, createdDate)
 
 Concepts_in_cohortSet_all_dates <- inner_join(Concepts_in_cohort, cohIdInfo, by = "cohortId")
 
-Concepts_in_cohortSet_all_dates <- Concepts_in_cohortSet_all_dates %>% rename (conceptID= concept.CONCEPT_ID)
+Concepts_in_cohortSet_all_dates <- Concepts_in_cohortSet_all_dates %>% rename(conceptId = concept.CONCEPT_ID)
 
 # run the actual comparison through different vocabulary versions
 
-#connectionDetailsVocab = set connectionDetailsVocab
+connectionDetails <- DatabaseConnector::createConnectionDetails(
+  dbms = "spark",
+  connectionString = keyring::key_get("databricks", "connection_string"),
+  user = "token",
+  password = keyring::key_get("databricks", "token")
+)
+
+#set name which will be used for the output
+projName <- 'PhenLibrary'
 
 excludedVisitNodes <- "9202, 2514435,9203,2514436,2514437,2514434,2514433,9201"
 includedSourceVocabs <- "'ICD10', 'ICD10CM', 'CPT4', 'HCPCS', 'NDC', 'ICD9CM', 'ICD9Proc', 'ICD10PCS', 'ICDO3', 'JMDC'"
@@ -53,7 +64,7 @@ cdmSchema <-'healthverity_cc.cdm_healthverity_cc_v3616' # to get the stats tab -
 #oldVocabSchema <-'v20210617' #schema containing an older vocabulary
 
 #specify schemas with vocabulary versions you want to compare
- oldVocabSchema<-'vocabulary.v20250827_full_omop'
+ oldVocabSchema<-'vocabulary.v20250827'
  newVocabSchema <-'vocabulary.v20260227'
 
 
@@ -83,4 +94,4 @@ resultToExcel(connectionDetailsVocab = connectionDetails,
 
 #open the excel file
 #Windows
-shell.exec("PhenChange.xlsx")
+shell.exec(paste0(projName, "PhenChange.xlsx"))
