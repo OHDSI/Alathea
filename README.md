@@ -196,18 +196,26 @@ Shows standard concepts that **changed domain** between vocabulary versions (e.g
 
 ### 5. stats *(optional — requires `cdmSchema`)*
 
-Calculates person-level impact of the vocabulary change by joining source concept differences against the actual CDM. Only produced when `cdmSchema` is provided.
+Quantifies the **patient-level impact** of the vocabulary change. For each cohort, the tool determines which source concepts (ICD, CPT4, etc.) map to the resolved standard concepts under the old vs new vocabulary, classifies each source concept as `same`, `added`, or `removed`, then joins against 6 CDM event tables (`condition_occurrence`, `procedure_occurrence`, `drug_exposure`, `device_exposure`, `measurement`, `observation`) on `*_source_concept_id` to count how many real patients are affected. Results are ordered by `same_persons_no_change / total_persons` ascending, so the most impacted cohorts appear first.
+
+> **Note:** This is not a real subject count change, but an approximation — the calculation does not use the real cohort definition logic (e.g. time windows, entry events, inclusion criteria).
+
+Only produced when `cdmSchema` is provided.
 
 | Column | Description |
 |---|---|
 | cohort_definition_id / cohortname | Cohort identifier and name |
-| total_persons | Total persons with any matching source code |
-| same_persons | Persons captured by both old and new vocabulary |
-| same_persons_no_change | Persons unaffected by any mapping change |
-| same_persons_potential_index_misclassification | Persons captured in both but with at least one changed code |
-| new_persons | Persons captured only in the new vocabulary |
-| lost_persons | Persons captured only in the old vocabulary |
-| same/removed/added_concepts_count | Count of unchanged, removed, and added source concepts |
+| total_persons | All persons having any matching source concept in the 6 CDM tables above |
+| same_persons | Persons captured by both vocabulary versions (have at least one unchanged source concept, or have both added and removed concepts) |
+| same_persons_no_change | Subset of same_persons whose qualifying source concepts are entirely unchanged — no impact from the vocabulary migration |
+| same_persons_potential_index_misclassification | same_persons minus same_persons_no_change: persons still captured but with at least one added or removed source concept, meaning the index event date may shift |
+| new_persons | Persons captured only under the new vocabulary (all their matching source concepts are `added`) |
+| lost_persons | Persons captured only under the old vocabulary (all their matching source concepts are `removed`) |
+| same_concepts_count | Number of source concepts unchanged between vocabulary versions |
+| removed_concepts_count | Number of source concepts that dropped out in the new vocabulary |
+| added_concepts_count | Number of source concepts newly included in the new vocabulary |
+
+**`same_persons_potential_index_misclassification`**: at least one of the concept sets has either added or lost source concepts, but the union of source concepts across all concept sets remains the same overall. This will potentially capture the same clinical events, but defined by different components of the cohort definition with different time constraints, resulting in index date misclassification.
 
 ---
 

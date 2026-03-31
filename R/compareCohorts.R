@@ -13,7 +13,7 @@
 #' The result is written to an excel file with the tab for each check
 #'
 #'
-#' @param connectionDetails An R object of type\cr\code{connectionDetails} created using the
+#' @param connectionDetailsVocab An R object of type\cr\code{connectionDetails} created using the
 #'                                     function \code{createConnectionDetails} in the
 #'                                     \code{DatabaseConnector} package.
 #' @param Concepts_in_cohortSetOldCht old cohort definition run on an old vocabulary -
@@ -26,9 +26,15 @@
 #'                                    "ConceptID","isExcluded","includeDescendants","conceptsetId","conceptsetName","cohortId"
 #' @param newVocabSchema        schema containing a new vocabulary version
 #' @param oldVocabSchema        schema containing an older vocabulary version
-#' @param resultSchema          schema containing Achilles results
+#' @param resultSchema          (optional) schema containing Achilles \code{achilles_result_cc} table;
+#'                              provides concept usage counts in the output.
+#'                              Set to \code{NULL} to run without usage counts (default: \code{NULL})
 #' @param excludedNodes         text string with excluded nodes, for example: "9201, 9202, 9203"; 0 by default
 #' @param includedSourceVocabs  text string with included source vocabularies, for example: "'ICD10CM', 'ICD9CM', 'HCPCS'"; 0 by default, which is treated as ALL vocabularies
+#' @param phenotypeUpdates      dataframe with columns \code{old_cohort_id} and \code{new_cohort_id} mapping old cohorts to their updated versions
+#' @param scratchSchema         used to store temp tables in Databricks
+#' @param projName              project name - used to name the output file
+#' @param outputFolder          path to the folder where the Excel file will be saved; created if it does not exist (default: \code{"results"})
 #'
 #' @examples
 #' \dontrun{
@@ -46,25 +52,29 @@
 
 
 CompareCohorts <-function( connectionDetailsVocab,
-                           cohorts, # contains old and new cohorts, old run on the old vocab version, new to be run on another vocab version
+                           cohorts,
                            Concepts_in_cohortSetOldCht,
                            Concepts_in_cohortSetNewCht,
+                           phenotypeUpdates,
                           newVocabSchema,
                           oldVocabSchema,
-                          resultSchema,
+                          resultSchema = NULL,
                           excludedNodes = 0,
-                          includedSourceVocabs =0)
+                          includedSourceVocabs = 0,
+                          scratchSchema,
+                          projName = '',
+                          outputFolder = "results"
+                          )
 {
   #use databaseConnector to run SQL and extract tables into data frames
 
-
+  options(sqlRenderTempEmulationSchema = scratchSchema)
 
   #connect to the vocabulary server
   conn <- DatabaseConnector::connect(connectionDetailsVocab)
 
 
   #insert Concepts_in_cohortSet into the SQL database where concepts sets will be resolved
-  #for Redshift ask your administrator for a key for bulk load
   DatabaseConnector::insertTable(connection = conn,
                                  tableName = "#ConceptsInCohortSetOld",
                                  data = Concepts_in_cohortSetOldCht,
@@ -98,9 +108,10 @@ CompareCohorts <-function( connectionDetailsVocab,
   #run the SQL creating all tables needed for the output
   DatabaseConnector::renderTranslateExecuteSql (connection = conn,
                                                 InitSql,
-                                                newVocabSchema=newVocabSchema,
-                                                oldVocabSchema= oldVocabSchema,
-                                                resultSchema = resultSchema,
+                                                newVocabSchema = newVocabSchema,
+                                                oldVocabSchema = oldVocabSchema,
+                                                hasAchilles = !is.null(resultSchema),
+                                                resultSchema = if (!is.null(resultSchema)) resultSchema else "na",
                                                 excludedNodes = excludedNodes,
                                                 includedSourceVocabs = includedSourceVocabs
   )
@@ -152,19 +163,19 @@ CompareCohorts <-function( connectionDetailsVocab,
 
   #append new cohort ids for the easier review
   mapDif <- mapDif %>%
-    inner_join (phenotypeUpdates, by = c("COHORTID" = "old_cohort_id"))
+    inner_join(phenotypeUpdates, by = c("COHORTID" = "old_cohort_id"))
 
   #get the non-standard concepts used in concept set definitions
   nonStNodes <- DatabaseConnector::renderTranslateQuerySql(connection = conn,
                                                            "select * from #non_st_Nodes
-order by drc desc", snakeCaseToCamelCase = T) # to evaluate the best way of naming
+order by drc desc", snakeCaseToCamelCase = T)
 
   #get the standard concepts changed domains and their mapped counterparts
   domainChange <-DatabaseConnector::renderTranslateQuerySql(connection = conn,
                                                             "select * from
                                            #resolv_dom_dif order by source_concept_record_count desc",  snakeCaseToCamelCase = T)
-  domainChange <-domainChange %>%
-  inner_join (phenotypeUpdates, by = c("cohortid" = "old_cohort_id"))
+  domainChange <- domainChange %>%
+    inner_join(phenotypeUpdates, by = c("cohortid" = "old_cohort_id"))
 
 
   #disconnect
@@ -182,5 +193,7 @@ order by drc desc", snakeCaseToCamelCase = T) # to evaluate the best way of nami
   addWorksheet(wb, "domainChange")
   writeData(wb, "domainChange", domainChange)
 
-  saveWorkbook(wb, "CohortDif.xlsx", overwrite = TRUE)
+  if (!dir.exists(outputFolder)) dir.create(outputFolder, recursive = TRUE)
+  outputPath <- file.path(outputFolder, paste0(projName, "CohortDif.xlsx"))
+  saveWorkbook(wb, outputPath, overwrite = TRUE)
 }

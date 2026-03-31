@@ -8,13 +8,11 @@
 
 library (dplyr)
 library (openxlsx)
-library (readr)
-library (tibble)
 library (DatabaseConnector)
 library (Alathea)
 
 #set the BaseUrl of your Atlas instance
-#baseUrl <- "https://yourSecureAtlas.ohdsi.org/"
+baseUrl <- "https://epi.jnj.com:8443/WebAPI/"
 
 # if security is enabled authorize use of the webapi
 ROhdsiWebApi::authorizeWebApi(
@@ -36,30 +34,28 @@ excludedVisitNodes <- "9202, 2514435,9203,2514436,2514437,2514434,2514433,9201"
 includedSourceVocabs <- "'ICD10', 'ICD10CM', 'CPT4', 'HCPCS', 'NDC', 'ICD9CM', 'ICD9Proc', 'ICD10PCS', 'ICDO3', 'JMDC'"
 
 
-#set connectionDetails,
-#you can use keyring to store your credentials,
+#set connectionDetails using keyring
 #see how to configure keyring to use with the example below in ~/Alathea/extras/KeyringSetup.R
 
-# you can also define connectionDetails directly, see the DatabaseConnector documentation https://ohdsi.github.io/DatabaseConnector/
-
-# connectionDetailsVocab = DatabaseConnector::createConnectionDetails(
-#   dbms = keyring::key_get("YourDatabase", "dbms" ),
-#   connectionString = keyring::key_get("YourDatabase", "connectionString"),
-#   user = keyring::key_get("YourDatabase", "username"),
-#   password = keyring::key_get("YourDatabase", "password" )
-# )
+connectionDetailsVocab <- DatabaseConnector::createConnectionDetails(
+  dbms = "spark",
+  connectionString = keyring::key_get("databricks", "connection_string"),
+  user = "token",
+  password = keyring::key_get("databricks", "token")
+)
 
 #specify schemas with vocabulary versions you want to compare
-newVocabSchema <-'v20240229' #schema containing a new vocabulary version
-oldVocabSchema <-'v20230116' #schema containing an older vocabulary
+oldVocabSchema <- 'vocabulary.v20250827_full_omop'
+newVocabSchema <- 'vocabulary.v20260227'
 
+#set name which will be used for the output
+projName <- 'CohortCheck'
 
-#get the concept count table
-#see to generate here
-# https://github.com/OHDSI/WebAPI/blob/master/src/main/resources/ddl/achilles/achilles_result_concept_count.sql
-# and store it in the same database as the Vocabulary tables, please specify schema as result schema
+scratchSchema <- 'scratch.scratch_ddymshyt'
 
-resultSchema <-'scratch_ddymshyt' #schema containing Achilles results
+# (optional) schema containing Achilles achilles_result_cc table - adds concept usage counts to output
+# set to NULL to run without usage counts
+resultSchema <- NULL
 
 cohorts <-phenotypeUpdates %>%filter(old_cohort_vocab_version == 'v20230116') %>%  select(old_cohort_id, new_cohort_id)
 
@@ -68,20 +64,23 @@ Concepts_in_cohortSetOldCht<-getNodeConcepts(cohorts$old_cohort_id, baseUrl)
 Concepts_in_cohortSetNewCht<-getNodeConcepts(cohorts$new_cohort_id, baseUrl)
 
 #resolve concept sets, compare the outputs on different vocabulary versions, write results to the Excel file
-#for Redshift ask your administrator for a key for bulk load, since the function uploads the data to the database
 Alathea::CompareCohorts(connectionDetailsVocab = connectionDetailsVocab,
-                                              cohorts = cohorts,
+              cohorts = cohorts,
               Concepts_in_cohortSetOldCht = Concepts_in_cohortSetOldCht,
-               Concepts_in_cohortSetNewCht = Concepts_in_cohortSetNewCht,
+              Concepts_in_cohortSetNewCht = Concepts_in_cohortSetNewCht,
+              phenotypeUpdates = phenotypeUpdates,
               newVocabSchema = newVocabSchema,
               oldVocabSchema = oldVocabSchema,
               excludedNodes = excludedVisitNodes,
-              resultSchema = resultSchema
+              resultSchema = resultSchema,
+              scratchSchema = scratchSchema,
+              projName = projName,
+              outputFolder = "results"
 )
 
 #open the excel file
 #Windows
-shell.exec("CohortDif.xlsx")
+shell.exec(file.path("results", paste0(projName, "CohortDif.xlsx")))
 
 #MacOS
-#system(paste("open", "CohortDif.xlsx"))
+#system(paste("open", file.path("results", paste0(projName, "CohortDif.xlsx"))))
