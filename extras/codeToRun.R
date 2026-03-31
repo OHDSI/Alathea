@@ -54,18 +54,19 @@ connectionDetails = DatabaseConnector::createConnectionDetails(
 )
 
 #specify schemas with vocabulary versions you want to compare
- oldVocabSchema<-'vocabulary.v20250827_full_omop'
+ oldVocabSchema<-'vocabulary.v20250827'
  newVocabSchema <-'vocabulary.v20260227'
 
 
-#get the concept count table
-#see to generate here
+# (optional) schema containing Achilles achilles_result_concept_count table - adds concept usage counts to output
+# to generate the table, see:
 # https://github.com/OHDSI/WebAPI/blob/master/src/main/resources/ddl/achilles/achilles_result_concept_count.sql
-# and store it in the same database as the Vocabulary tables, please specify schema as result schema
-
-resultSchema <-'vocabulary.jnj_network' #schema containing Achilles results
+# set to NULL to run without usage counts
+resultSchema <-'vocabulary.jnj_network'
 scratchSchema <-'scratch.scratch_ddymshyt'
-cdmSchema <-'healthverity_cc.cdm_healthverity_cc_v3616' # to get the stats tab - as it runs on the real data
+# (optional) CDM schema for the stats tab - requires access to patient-level data
+# set to NULL to skip the stats tab
+cdmSchema <-'healthverity_cc.cdm_healthverity_cc_v3616'
 
 #create the dataframe with concept set expressions using the getNodeConcepts function
 Concepts_in_cohortSet<-getNodeConcepts(cohorts, baseUrl)

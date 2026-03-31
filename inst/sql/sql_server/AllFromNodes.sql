@@ -8,7 +8,7 @@ SELECT
   s.includedescendants,
   cn.concept_id AS Node_concept_id,
   cn.concept_name AS node_concept_name,
-  COALESCE(aro.descendant_record_count, 0) AS drc,
+  {@hasAchilles} ? {COALESCE(aro.descendant_record_count, 0)} : {0} AS drc,
   cm.concept_id AS maps_to_concept_id,
   cm.concept_name AS maps_to_concept_name,
   cmv.concept_id AS maps_to_value_concept_id,
@@ -18,8 +18,8 @@ FROM #ConceptsInCohortSet AS s
 JOIN @newVocabSchema.concept AS cn
   ON cn.concept_id = s.conceptid
  AND cn.standard_concept IS NULL
-LEFT JOIN @resultSchema.achilles_result_concept_count AS aro
-  ON aro.concept_id = cn.concept_id
+{@hasAchilles} ? {LEFT JOIN @resultSchema.achilles_result_concept_count AS aro
+  ON aro.concept_id = cn.concept_id}
 LEFT JOIN @newVocabSchema.concept_relationship AS cr
   ON cr.concept_id_1 = cn.concept_id
  AND cr.relationship_id = 'Maps to'
@@ -213,7 +213,7 @@ SELECT
   dif.conceptsetname,
   dif.conceptsetid,
   dif.action,
-  arc.record_count AS record_count,
+  {@hasAchilles} ? {arc.record_count} : {0} AS record_count,
   dif.source_concept_id,
   cs.concept_name AS source_concept_name,
   cs.vocabulary_id AS source_vocabulary_id,
@@ -232,8 +232,8 @@ LEFT JOIN @oldVocabSchema.concept_relationship AS cr
  AND cr.invalid_reason IS NULL
 LEFT JOIN @oldVocabSchema.concept AS c
   ON c.concept_id = cr.concept_id_2
-JOIN @resultSchema.achilles_result_concept_count AS arc
-  ON arc.concept_id = cs.concept_id
+{@hasAchilles} ? {JOIN @resultSchema.achilles_result_concept_count AS arc
+  ON arc.concept_id = cs.concept_id}
 WHERE cs.vocabulary_id IN (@includedSourceVocabs)
 ;
 
@@ -268,7 +268,7 @@ SELECT
   cs.vocabulary_id AS source_vocabulary_id,
   co.domain_id AS old_domain_id,
   cn.domain_id AS new_domain_id,
-  COALESCE(aro.record_count, 0) AS source_concept_record_count
+  {@hasAchilles} ? {COALESCE(aro.record_count, 0)} : {0} AS source_concept_record_count
 INTO #resolv_dom_dif
 FROM (
   SELECT * FROM #old_vc
@@ -286,7 +286,7 @@ JOIN @newVocabSchema.concept_relationship AS cr
  AND cr.invalid_reason IS NULL
 JOIN @newVocabSchema.concept AS cs
   ON cs.concept_id = cr.concept_id_2
-LEFT JOIN @resultSchema.achilles_result_concept_count AS aro
-  ON aro.concept_id = cs.concept_id
+{@hasAchilles} ? {LEFT JOIN @resultSchema.achilles_result_concept_count AS aro
+  ON aro.concept_id = cs.concept_id}
 WHERE co.domain_id <> cn.domain_id
   AND cs.vocabulary_id IN (@includedSourceVocabs)

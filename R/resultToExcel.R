@@ -9,7 +9,7 @@
 #' The result is written to an excel file with the tab for each check
 #'
 #'
-#' @param connectionDetails An R object of type\cr\code{connectionDetails} created using the
+#' @param connectionDetailsVocab An R object of type\cr\code{connectionDetails} created using the
 #'                                     function \code{createConnectionDetails} in the
 #'                                     \code{DatabaseConnector} package.
 #' @param Concepts_in_cohortSet dataframe which stores cohorts and concept set definitions in a tabular format,
@@ -17,12 +17,15 @@
 #'                              "ConceptID","isExcluded","includeDescendants","conceptsetId","conceptsetName","cohortId"
 #' @param newVocabSchema        schema containing a new vocabulary version
 #' @param oldVocabSchema        schema containing an older vocabulary version
-#' @param resultSchema          schema containing Achilles results
+#' @param resultSchema          (optional) schema containing Achilles \code{achilles_result_concept_count} table;
+#'                              provides concept usage counts in the output.
+#'                              Set to \code{NULL} to run without usage counts (default: \code{NULL})
 #' @param excludedNodes         text string with excluded nodes, for example: "9201, 9202, 9203"; 0 by default
 #' @param includedSourceVocabs  text string with included source vocabularies, for example: "'ICD10CM', 'ICD9CM', 'HCPCS'"; 0 by default, which is treated as ALL vocabularies
 #' @param projName              project name - used to name the output file
 #' @param scratchSchema         used to store temp tables in Databricks
-#' @param cdmSchema             used to store get the statistics, use the dataset of choice
+#' @param cdmSchema             (optional) CDM schema used for the stats tab; requires patient-level data access.
+#'                              Set to \code{NULL} to skip the stats tab (default: \code{NULL})
 #' @examples
 #' \dontrun{
 #'  resultToExcel(connectionDetails = YourconnectionDetails,
@@ -39,12 +42,12 @@ resultToExcel <-function( connectionDetailsVocab,
                           Concepts_in_cohortSet,
                           newVocabSchema,
                           oldVocabSchema,
-                          resultSchema,
+                          resultSchema = NULL,
                           excludedNodes = 0,
                           includedSourceVocabs =0,
                           projName  = '',
-                          scratchSchema = scratchSchema,
-                          cdmSchema= cdmSchema
+                          scratchSchema,
+                          cdmSchema = NULL
                           )
 {
   #use databaseConnector to run SQL and extract tables into data frames
@@ -56,7 +59,6 @@ resultToExcel <-function( connectionDetailsVocab,
 
 
   #insert Concepts_in_cohortSet into the SQL database where concepts sets will be resolved
-  #for Redshift ask your administrator for a key for bulk load
   DatabaseConnector::insertTable(connection = conn,
                                  tableName = "#ConceptsInCohortSet",
                                  data = Concepts_in_cohortSet,
@@ -74,9 +76,10 @@ resultToExcel <-function( connectionDetailsVocab,
   #run the SQL creating all tables needed for the output
   DatabaseConnector::renderTranslateExecuteSql (connection = conn,
                                                 InitSql,
-                                                newVocabSchema=newVocabSchema,
-                                                oldVocabSchema= oldVocabSchema,
-                                                resultSchema = resultSchema,
+                                                newVocabSchema = newVocabSchema,
+                                                oldVocabSchema = oldVocabSchema,
+                                                hasAchilles = !is.null(resultSchema),
+                                                resultSchema = if (!is.null(resultSchema)) resultSchema else "na",
                                                 excludedNodes = excludedNodes,
                                                 includedSourceVocabs = includedSourceVocabs
   )
@@ -149,7 +152,7 @@ resultToExcel <-function( connectionDetailsVocab,
   #get the non-standard concepts used in concept set definitions
   nonStNodes <- DatabaseConnector::renderTranslateQuerySql(connection = conn,
                                                            "select * from #non_st_Nodes
-order by drc desc", snakeCaseToCamelCase = T) # to evaluate the best way of naming
+order by drc desc", snakeCaseToCamelCase = T)
 
 
   #get the standard concepts changed domains and their mapped counterparts
@@ -157,39 +160,27 @@ order by drc desc", snakeCaseToCamelCase = T) # to evaluate the best way of nami
                                                             "select * from
                                            #resolv_dom_dif order by source_concept_record_count desc",  snakeCaseToCamelCase = T)
 
-  #get stats
+  #get stats (optional - requires cdmSchema with patient-level data)
   #############
-  #import cohort_id / cohort_name table
-  DatabaseConnector::insertTable(
-    connection = conn,
-    tableName  = "scratch.scratch_ddymshyt.cohort_id_names",
-    data       = Cohorts,
-    dropTableIfExists = TRUE,   # set FALSE if you want to append
-    createTable      = TRUE,    # creates the table with inferred types
-    tempTable        = FALSE,   # we want a real table, not temp
-    useMppBulkLoad   = FALSE    # keep FALSE for Databricks / Spark
-  )
+  if (!is.null(cdmSchema)) {
+    pathToSqlStats <- system.file("sql/sql_server", "get_stats.sql", package = "Alathea")
+    StatsSql <- read_file(pathToSqlStats)
 
+    #run the SQL getting the statistics
+    DatabaseConnector::renderTranslateExecuteSql(connection = conn,
+                                                 StatsSql,
+                                                 newVocabSchema = newVocabSchema,
+                                                 oldVocabSchema = oldVocabSchema,
+                                                 includedSourceVocabs = includedSourceVocabs,
+                                                 cdmSchema = cdmSchema,
+                                                 scratchSchema = scratchSchema
+    )
 
-  pathToSqlStats <- system.file("sql/sql_server", "get_stats.sql", package = "Alathea")
-  StatsSql <- read_file(pathToSqlStats)
-
-
-  #run the SQL getting the statistics
-  DatabaseConnector::renderTranslateExecuteSql (connection = conn,
-                                                StatsSql,
-                                                newVocabSchema=newVocabSchema,
-                                                oldVocabSchema= oldVocabSchema,
-                                                resultSchema = resultSchema,
-                                                excludedNodes = excludedNodes,
-                                                includedSourceVocabs = includedSourceVocabs,
-                                                cdmSchema = cdmSchema,
-                                                scratchSchema = scratchSchema
-  )
-
-  stats <-DatabaseConnector::renderTranslateQuerySql(connection = conn,
-                                                            "select * from
-                                           @scratchSchema.stats ORDER BY same_persons_no_change * 1.0 / total_persons",scratchSchema = scratchSchema,  snakeCaseToCamelCase = T)
+    stats <- DatabaseConnector::renderTranslateQuerySql(connection = conn,
+                                                        "select * from @scratchSchema.stats ORDER BY same_persons_no_change * 1.0 / total_persons",
+                                                        scratchSchema = scratchSchema,
+                                                        snakeCaseToCamelCase = T)
+  }
 
 
   #drop temp tables (which are physical tables in databricks, so need to be deleted)
@@ -225,8 +216,10 @@ DROP TABLE IF EXISTS @scratchSchema.stats;",
   addWorksheet(wb, "domainChange")
   writeData(wb, "domainChange", domainChange)
 
-  addWorksheet(wb, "stats")
-  writeData(wb, "stats", stats)
+  if (!is.null(cdmSchema)) {
+    addWorksheet(wb, "stats")
+    writeData(wb, "stats", stats)
+  }
 
   saveWorkbook(wb, paste0(projName, "PhenChange.xlsx"), overwrite = TRUE)
 }
