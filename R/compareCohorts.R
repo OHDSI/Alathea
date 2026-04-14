@@ -59,7 +59,7 @@ CompareCohorts <-function( connectionDetailsVocab,
                           newVocabSchema,
                           oldVocabSchema,
                           resultSchema = NULL,
-                          excludedNodes = 0,
+                          excludedNodes = NULL,
                           includedSourceVocabs = 0,
                           scratchSchema,
                           projName = '',
@@ -112,7 +112,7 @@ CompareCohorts <-function( connectionDetailsVocab,
                                                 oldVocabSchema = oldVocabSchema,
                                                 hasAchilles = !is.null(resultSchema),
                                                 resultSchema = if (!is.null(resultSchema)) resultSchema else "na",
-                                                excludedNodes = excludedNodes,
+                                                excludedNodes = if (!is.null(excludedNodes)) excludedNodes else 0,
                                                 includedSourceVocabs = includedSourceVocabs
   )
 
