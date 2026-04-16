@@ -184,6 +184,7 @@ SELECT
     s.same_persons_potential_index_misclassification,
     s.new_persons,
     s.lost_persons,
+    s.same_persons_no_change * 1.0 / s.total_persons AS same_persons_no_change_ratio,
     cc.same_concepts_count,
     cc.removed_concepts_count,
     cc.added_concepts_count

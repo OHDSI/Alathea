@@ -88,10 +88,10 @@ resultToExcel(connectionDetailsVocab = connectionDetails,
               cdmSchema = cdmSchema,
               outputFolder = "results"
 )
-
+  
 #open the excel file
 #Windows
-shell.exec(file.path("results", paste0(projName, "PhenChange.xlsx")))
+shell.exec(normalizePath(file.path("results", paste0(projName, "PhenChange.xlsx"))))
 
 #MacOS
-#system(paste("open", file.path("results", paste0(projName, "PhenChange.xlsx"))))
+#system(paste("open", normalizePath(file.path("results", paste0(projName, "PhenChange.xlsx")))))

@@ -205,17 +205,18 @@ Only produced when `cdmSchema` is provided.
 | Column | Description |
 |---|---|
 | cohort_definition_id / cohortname | Cohort identifier and name |
-| total_persons | All persons having any matching source concept in the 6 CDM tables above |
-| same_persons | Persons captured by both vocabulary versions (have at least one unchanged source concept, or have both added and removed concepts) |
+| total_persons | Distinct persons who appear in either old or new vocabulary resolved cohort |
+| same_persons | Persons who would be included in the cohort under both the old and the new vocabulary, either because at least one of their source codes is stable, or because they have both a lost code and a gained code (so they qualify under each vocabulary via different routes). |
 | same_persons_no_change | Subset of same_persons whose qualifying source concepts are entirely unchanged — no impact from the vocabulary migration |
-| same_persons_potential_index_misclassification | same_persons minus same_persons_no_change: persons still captured but with at least one added or removed source concept, meaning the index event date may shift |
+| same_persons_potential_index_misclassification | same_persons minus same_persons_no_change: persons still captured but because they have both a lost code and a gained code (so they might qualify under each vocabulary via different routes). |
 | new_persons | Persons captured only under the new vocabulary (all their matching source concepts are `added`) |
 | lost_persons | Persons captured only under the old vocabulary (all their matching source concepts are `removed`) |
+| same_persons_no_change_ratio | `same_persons_no_change / total_persons` — allows to evaluate the potential impact of vocabulary changes on cohort composition |
 | same_concepts_count | Number of source concepts unchanged between vocabulary versions |
 | removed_concepts_count | Number of source concepts that dropped out in the new vocabulary |
 | added_concepts_count | Number of source concepts newly included in the new vocabulary |
 
-**`same_persons_potential_index_misclassification`**: at least one of the concept sets has either added or lost source concepts, but the union of source concepts across all concept sets remains the same overall. This will potentially capture the same clinical events, but defined by different components of the cohort definition with different time constraints, resulting in index date misclassification.
+**`same_persons_potential_index_misclassification`**: cohort dates might still be the same, as persons may enter the cohort on non-affected source concepts.
 
 ---
 
